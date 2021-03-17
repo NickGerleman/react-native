@@ -39,8 +39,7 @@ import {
   type ListDebugInfo,
 } from './VirtualizedListContext';
 
-import type {Region} from './DisjointRegionSet';
-import {DisjointRegionSet} from './DisjointRegionSet';
+import {CellRenderMask} from './CellRenderMask';
 
 type Item = any;
 
@@ -324,8 +323,8 @@ let _usedIndexForKey = false;
 let _keylessItemComponentName: string = '';
 
 type State = {
-  renderRegions: DisjointRegionSet,
-  visibilityDerivedRegion: Region,
+  renderMask: CellRenderMask,
+  viewportWindow: {first: number, last: number},
 };
 
 /**
@@ -691,7 +690,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
     );
 
     invariant(
-      this.props.getItemCount && this.props.data,
+      props.getItemCount && props.data,
       'VirtualizedList: "getItemCount" and "data" props must be provided',
     );
 
@@ -732,64 +731,60 @@ class VirtualizedList extends React.PureComponent<Props, State> {
   _computeState(reason: RenderReason, props: Props, prevState?: ?State): State {
     const itemCount = this.props.getItemCount(this.props.data);
 
-    const renderRegions = new DisjointRegionSet(itemCount);
-    let visibilityDerivedRegion = {first: -1, last: -1};
+    const renderMask = new CellRenderMask(itemCount);
+    let viewportWindow = {first: -1, last: -1};
 
     const initialRegion = _initialRenderRegion();
     if (reason === 'initial' || this.props.initialScrollIndex === 0) {
-      renderRegions.add(initialRegion);
+      renderMask.addCells(initialRegion);
     }
 
     switch (reason) {
       case 'initial': {
-        visibilityDerivedRegion = initialRegion;
+        viewportWindow = initialRegion;
         break;
       }
 
       case 'props-invalidated': {
         // first and last could be stale (e.g. if a new, shorter items props is passed in), so we make
         // sure we're rendering a reasonable range here.
-        const prevVisibilityRegion = prevState.visibilityDerivedRegion;
+        const prevWindow = prevState.viewportWindow;
 
-        const constrainedRegion = {
+        const constrainedWindow = {
           first: Math.max(
             0,
             Math.min(
-              prevVisibilityRegion.first,
+              prevWindows.first,
               itemCount - 1 - props.maxToRenderPerBatch,
             ),
           ),
-          last: Math.min(itemCount - 1, prevVisibilityRegion.last),
+          last: Math.min(itemCount - 1, prevWindows.last),
         };
 
-        visibilityDerivedRegion = constrainedRegion;
-        renderRegions.add(constrainedRegion);
+        viewportWindow = constrainedWindow;
+        renderMask.addCells(constrainedWindow);
         break;
       }
 
       case 'batch': {
-        const adjustedRegion = this._adjustVisiblityRegion(
+        const adjustedWindow = this._adjustViewportWindow(
           props,
-          renderRegions,
-          prevState.visibilityDerivedRegion,
+          renderMask,
+          prevState.viewportWindow,
         );
 
-        visibilityDerivedRegion = adjustedRegion;
-        renderRegions.add(adjustedRegion);
+        viewportWindow = adjustedWindow;
+        renderMask.addCells(adjustedWindow);
         break;
       }
     }
 
     invariant(
-      visibilityDerivedRegion.first >= 0 &&
-        visibilityDerivedRegion.last >= visibilityDerivedRegion.first,
+      viewportWindow.first >= 0 && viewportWindow.last >= viewportWindow.first,
     );
-    this._addStickyHeadersAbove(
-      renderRegions,
-      workingState.visibilityDerivedRegion,
-    );
+    this._ensureStickyHeaderBefore(renderMask, viewportWindow.first);
 
-    return {renderRegions, visibilityDerivedRegion};
+    return {renderMask, viewportWindow};
   }
 
   _initialRenderRegion(): Region {
@@ -805,16 +800,18 @@ class VirtualizedList extends React.PureComponent<Props, State> {
     };
   }
 
-  _addStickyHeadersAbove(renderRegions: DisjointRegionSet, region: Region) {
-    // TODO
+  _ensureStickyHeaderBefore(renderMask: CellRenderMask, cellIdx: number) {
+    const stickyOffset = this.props.ListHeaderComponent ? 1 : 0;
+
+    for (const itemIdx = cellIdx - 1; itemIdx >= 0; itemIdx--) {
+      if (stickyIndicesFromProps.has(itemIdx + stickyOffset)) {
+        renderMask.addCells({first: itemIdx, last: itemIdx});
+      }
+    }
   }
 
-  _adjustVisiblityRegion(
-    props: Props,
-    renderRegions: DisjointRegionSet,
-    visibilityRegion: Region,
-  ): Region {
-    const {data, getItemCount, onEndReachedThreshold} = this.props;
+  _adjustViewportWindow(props: Props, visibilityRegion: Region): Region {
+    const {data, getItemCount, onEndReachedThreshold} = props;
     this._updateViewableItems(data);
 
     const {contentLength, offset, visibleLength} = this._scrollMetrics;
@@ -1095,7 +1092,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
       const spacerKey = this._getSpacerKey(!horizontal);
 
       const renderSections = this.state.virtualize
-        ? this.state.renderRegions.enumerateSections()
+        ? this.state.renderMask.enumerateSections()
         : [{first: 0, last: itemCount - 1, isGap: false}];
 
       const gaps = renderSections.filter(section => section.isGap);
@@ -1184,7 +1181,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
     };
 
     // TODO this wasn't right before...
-    this._hasMore = this.state.visibilityDerivedRegion.last < itemCount - 1;
+    this._hasMore = this.state.viewportWindow.last < itemCount - 1;
 
     const innerRet = (
       <VirtualizedListContextProvider
@@ -1800,13 +1797,13 @@ class VirtualizedList extends React.PureComponent<Props, State> {
     this.setState((state, props) => {
       const nextState = this._computeState('batch', props, state);
 
-      const visibilityRegion = state.visibilityDerivedRegion;
-      const nextVisibilityRegion = nextState.visibilityDerivedRegion;
+      const visibilityRegion = state.viewportWindow;
+      const nextVisibilityRegion = nextState.viewportWindow;
 
       if (
         nextVisibilityRegion.first === visibilityRegion.first &&
         nextVisibilityRegion.last === visibilityRegion.last &&
-        nextState.renderRegions.equals(state.renderRegions)
+        nextState.renderMask.equals(state.renderMask)
       ) {
         return null;
       }
