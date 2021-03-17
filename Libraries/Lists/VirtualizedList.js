@@ -1180,8 +1180,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
         : this.props.style,
     };
 
-    // TODO this wasn't right before...
-    this._hasMore = this.state.viewportWindow.last < itemCount - 1;
+    this._hasMore = !this.state.viewportWindow.last < itemCount - 1;
 
     const innerRet = (
       <VirtualizedListContextProvider
