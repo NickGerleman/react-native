@@ -43,7 +43,7 @@ import {CellRenderMask} from './CellRenderMask';
 
 type Item = any;
 
-type RenderReason = 'initial' | 'props-invalidated' | 'batch';
+type RenderReason = 'initial-render' | 'props-invalidated' | 'batch-render';
 
 export type Separators = {
   highlight: () => void,
@@ -714,7 +714,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
       });
     }
 
-    let initialState = this._computeState('initial', props);
+    let initialState = this._computeState('initial-render', props);
 
     if (this._isNestedWithSameOrientation()) {
       const storedState = this.context.getNestedChildState(this._getListKey());
@@ -728,19 +728,23 @@ class VirtualizedList extends React.PureComponent<Props, State> {
     this.state = initialState;
   }
 
-  _computeState(reason: RenderReason, props: Props, prevState?: ?State): State {
-    const itemCount = this.props.getItemCount(this.props.data);
+  static _computeState(
+    reason: RenderReason,
+    props: Props,
+    prevState?: ?State,
+  ): State {
+    const itemCount = props.getItemCount(props.data);
 
     const renderMask = new CellRenderMask(itemCount);
     let viewportWindow = {first: -1, last: -1};
 
     const initialRegion = _initialRenderRegion();
-    if (reason === 'initial' || this.props.initialScrollIndex === 0) {
+    if (reason === 'initial-render' || this.props.initialScrollIndex === 0) {
       renderMask.addCells(initialRegion);
     }
 
     switch (reason) {
-      case 'initial': {
+      case 'initial-render': {
         viewportWindow = initialRegion;
         break;
       }
@@ -766,7 +770,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
         break;
       }
 
-      case 'batch': {
+      case 'batch-render': {
         const adjustedWindow = this._adjustViewportWindow(
           props,
           renderMask,
@@ -861,7 +865,9 @@ class VirtualizedList extends React.PureComponent<Props, State> {
       // up through that item, so that we give that list a chance to render.
       // Otherwise there's churn from multiple child lists mounting and un-mounting
       // their items.
-      const childIdx = this._findFirstChildWithUnrendered(
+
+      // Will this prevent rendering if the nested list doesn't realize the end?
+      const childIdx = this._findFirstChildWithMore(
         newVisibilityRegion.first,
         newVisibilityRegion.last,
       );
@@ -872,7 +878,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
     return newVisibilityRegion;
   }
 
-  _findFirstChildWithUnrendered(first: number, last: number): number | null {
+  _findFirstChildWithMore(first: number, last: number): number | null {
     for (let ii = newFirst; ii <= newLast; ii++) {
       const cellKeyForIndex = this._indicesToKeys.get(ii);
       const childListKeys =
@@ -1020,7 +1026,6 @@ class VirtualizedList extends React.PureComponent<Props, State> {
       ListHeaderComponent,
     } = this.props;
     const {data, horizontal} = this.props;
-    const isVirtualizationDisabled = this._isVirtualizationDisabled();
     const inversionStyle = this.props.inverted
       ? this.props.horizontal
         ? styles.horizontallyInverted
@@ -1091,18 +1096,17 @@ class VirtualizedList extends React.PureComponent<Props, State> {
       _keylessItemComponentName = '';
       const spacerKey = this._getSpacerKey(!horizontal);
 
-      const renderSections = this.state.virtualize
-        ? this.state.renderMask.enumerateSections()
-        : [{first: 0, last: itemCount - 1, isGap: false}];
+      const renderRegions = this.state.renderMask.enumerateRegions();
 
-      const gaps = renderSections.filter(section => section.isGap);
+      // TODO something more efficient
+      const spacers = renderRegions.filter(section => section.isSpacer);
 
-      for (const section of renderSections) {
-        if (section.isGap) {
+      for (const section of renderRegions) {
+        if (section.isSpacer) {
           // Without getItemLayout, we limit our tail spacer to the _highestMeasuredFrameIndex to
           // prevent the user for hyperscrolling into un-measured area because otherwise content will
           // likely jump around as it renders in above the viewport.
-          const isLastSpacer = section === gaps[gaps.length - 1];
+          const isLastSpacer = section === spacers[spacers.length - 1];
           const constrainToMeasured = isLastSpacer && !this.props.getItemLayout;
           const last = constrainToMeasured
             ? section.last
@@ -1115,10 +1119,18 @@ class VirtualizedList extends React.PureComponent<Props, State> {
           cells.push(
             <View
               key={`$spacer-${section.first}`}
-              style={{[spacerKey]: leadSpace}}
+              style={{[spacerKey]: spacerSize}}
             />,
           );
         } else {
+          this._pushCells(
+            cells,
+            stickyHeaderIndices,
+            stickyIndicesFromProps,
+            section.first,
+            section.last,
+            inversionStyle,
+          );
         }
       }
 
@@ -1180,7 +1192,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
         : this.props.style,
     };
 
-    this._hasMore = !this.state.viewportWindow.last < itemCount - 1;
+    this._hasMore = this.state.viewportWindow.last < itemCount - 1;
 
     const innerRet = (
       <VirtualizedListContextProvider
@@ -1314,7 +1326,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
   _computeBlankness() {
     this._fillRateHelper.computeBlankness(
       this.props,
-      this.state,
+      this.state.viewportWindow,
       this._scrollMetrics,
     );
   }
@@ -1493,8 +1505,12 @@ class VirtualizedList extends React.PureComponent<Props, State> {
         framesInLayout.push(frame);
       }
     }
-    const windowTop = this._getFrameMetricsApprox(this.state.first).offset;
-    const frameLast = this._getFrameMetricsApprox(this.state.last);
+    const windowTop = this._getFrameMetricsApprox(
+      this.state.viewportWindow.first,
+    ).offset;
+    const frameLast = this._getFrameMetricsApprox(
+      this.state.viewportWindow.last,
+    );
     const windowLen = frameLast.offset + frameLast.length - windowTop;
     const visTop = this._scrollMetrics.offset;
     const visLen = this._scrollMetrics.visibleLength;
@@ -1572,7 +1588,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
       : 2;
     if (
       onEndReached &&
-      this.state.last === getItemCount(data) - 1 &&
+      this.state.viewportWindow.last === getItemCount(data) - 1 &&
       distanceFromEnd < threshold &&
       this._scrollMetrics.contentLength !== this._sentEndForContentLength
     ) {
@@ -1704,7 +1720,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
   };
 
   _scheduleCellsToRenderUpdate() {
-    const {first, last} = this.state;
+    const {first, last} = this.state.viewportWindow;
     const {offset, visibleLength, velocity} = this._scrollMetrics;
     const itemCount = this.props.getItemCount(this.props.data);
     let hiPri = false;
@@ -1794,7 +1810,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
 
   _updateCellsToRender = () => {
     this.setState((state, props) => {
-      const nextState = this._computeState('batch', props, state);
+      const nextState = this._computeState('batch-render', props, state);
 
       const visibilityRegion = state.viewportWindow;
       const nextVisibilityRegion = nextState.viewportWindow;
@@ -1885,7 +1901,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
         this._getFrameMetrics,
         this._createViewToken,
         tuple.onViewableItemsChanged,
-        this.state,
+        this.state.viewportWindow,
       );
     });
   }
