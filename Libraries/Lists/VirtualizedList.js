@@ -758,11 +758,11 @@ class VirtualizedList extends React.PureComponent<Props, State> {
           first: Math.max(
             0,
             Math.min(
-              prevWindows.first,
+              prevWindow.first,
               itemCount - 1 - props.maxToRenderPerBatch,
             ),
           ),
-          last: Math.min(itemCount - 1, prevWindows.last),
+          last: Math.min(itemCount - 1, prevWindow.last),
         };
 
         viewportWindow = constrainedWindow;
@@ -786,12 +786,18 @@ class VirtualizedList extends React.PureComponent<Props, State> {
     invariant(
       viewportWindow.first >= 0 && viewportWindow.last >= viewportWindow.first,
     );
-    this._ensureStickyHeaderBefore(renderMask, viewportWindow.first);
+    const stickyIndicesSet = new Set(props.stickyHeaderIndices);
+    this._ensureStickyHeaderBefore(
+      props,
+      stickyIndicesSet,
+      renderMask,
+      viewportWindow.first,
+    );
 
     return {renderMask, viewportWindow};
   }
 
-  _initialRenderRegion(): Region {
+  _initialRenderRegion(): {first: number, last: number} {
     const itemCount = this.props.getItemCount(this.props.data);
     const scrollIndex = this.props.initialScrollIndex || 0;
 
@@ -804,17 +810,25 @@ class VirtualizedList extends React.PureComponent<Props, State> {
     };
   }
 
-  _ensureStickyHeaderBefore(renderMask: CellRenderMask, cellIdx: number) {
-    const stickyOffset = this.props.ListHeaderComponent ? 1 : 0;
+  _ensureStickyHeaderBefore(
+    props: Props,
+    stickyIndicesSet: Set<number>,
+    renderMask: CellRenderMask,
+    cellIdx: number,
+  ) {
+    const stickyOffset = props.ListHeaderComponent ? 1 : 0;
 
-    for (const itemIdx = cellIdx - 1; itemIdx >= 0; itemIdx--) {
-      if (stickyIndicesFromProps.has(itemIdx + stickyOffset)) {
+    for (let itemIdx = cellIdx - 1; itemIdx >= 0; itemIdx--) {
+      if (stickyIndicesSet.has(itemIdx + stickyOffset)) {
         renderMask.addCells({first: itemIdx, last: itemIdx});
       }
     }
   }
 
-  _adjustViewportWindow(props: Props, visibilityRegion: Region): Region {
+  _adjustViewportWindow(
+    props: Props,
+    viewportWindow: {first: number, last: number},
+  ): {first: number, last: number} {
     const {data, getItemCount, onEndReachedThreshold} = props;
     this._updateViewableItems(data);
 
@@ -823,10 +837,10 @@ class VirtualizedList extends React.PureComponent<Props, State> {
     // Wait until the scroll view metrics have been set up. And until then,
     // we will trust the initialNumToRender suggestion
     if (visibleLength < 0 || contentLength < 0) {
-      return [visibilityRegion, 0];
+      return [viewportWindow, 0];
     }
 
-    let newVisibilityRegion = null;
+    let newviewportWindow: {first: number, last: number} = null;
     if (this._isVirtualizationDisabled()) {
       const distanceFromEnd = contentLength - visibleLength - offset;
 
@@ -838,29 +852,30 @@ class VirtualizedList extends React.PureComponent<Props, State> {
           ? this.props.maxToRenderPerBatch
           : 0;
 
-      newVisibilityRegion = {
+      newviewportWindow = {
         first: 0,
-        last: Math.min(state.last + renderAhead, getItemCount(data) - 1),
+        last: Math.min(
+          this.state.viewportWindow.last + renderAhead,
+          getItemCount(data) - 1,
+        ),
       };
     } else {
       // If we have a non-zero initialScrollIndex and run this before we've scrolled,
       // wait until we've scrolled the view to the right place. And until then,
       // we will trust the initialScrollIndex suggestion.
       if (this.props.initialScrollIndex && !this._scrollMetrics.offset) {
-        return [visibilityRegion, 0];
+        return [viewportWindow, 0];
       }
 
-      newVisibilityRegion = computeWindowedRenderLimits(
+      newviewportWindow = computeWindowedRenderLimits(
         this.props,
-        visibilityRegion,
+        viewportWindow,
         this._getFrameMetricsApprox,
         this._scrollMetrics,
       );
     }
 
     if (this._nestedChildLists.size > 0) {
-      const newFirst = newState.first;
-      const newLast = newState.last;
       // If some cell in the new state has a child list in it, we should only render
       // up through that item, so that we give that list a chance to render.
       // Otherwise there's churn from multiple child lists mounting and un-mounting
@@ -868,18 +883,18 @@ class VirtualizedList extends React.PureComponent<Props, State> {
 
       // Will this prevent rendering if the nested list doesn't realize the end?
       const childIdx = this._findFirstChildWithMore(
-        newVisibilityRegion.first,
-        newVisibilityRegion.last,
+        newviewportWindow.first,
+        newviewportWindow.last,
       );
 
-      newVisibilityRegion.last = childIdx || newVisibilityRegion.last;
+      newviewportWindow.last = childIdx || newviewportWindow.last;
     }
 
-    return newVisibilityRegion;
+    return newviewportWindow;
   }
 
   _findFirstChildWithMore(first: number, last: number): number | null {
-    for (let ii = newFirst; ii <= newLast; ii++) {
+    for (let ii = first; ii <= last; ii++) {
       const cellKeyForIndex = this._indicesToKeys.get(ii);
       const childListKeys =
         cellKeyForIndex && this._cellKeysToChildListKeys.get(cellKeyForIndex);
@@ -918,8 +933,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
       this.context.unregisterAsNestedChild({
         key: this._getListKey(),
         state: {
-          first: this.state.first,
-          last: this.state.last,
+          ...this.state,
           frames: this._frames,
         },
       });
@@ -1812,12 +1826,12 @@ class VirtualizedList extends React.PureComponent<Props, State> {
     this.setState((state, props) => {
       const nextState = this._computeState('batch-render', props, state);
 
-      const visibilityRegion = state.viewportWindow;
-      const nextVisibilityRegion = nextState.viewportWindow;
+      const viewportWindow = state.viewportWindow;
+      const nextviewportWindow = nextState.viewportWindow;
 
       if (
-        nextVisibilityRegion.first === visibilityRegion.first &&
-        nextVisibilityRegion.last === visibilityRegion.last &&
+        nextviewportWindow.first === viewportWindow.first &&
+        nextviewportWindow.last === viewportWindow.last &&
         nextState.renderMask.equals(state.renderMask)
       ) {
         return null;

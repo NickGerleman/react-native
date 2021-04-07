@@ -84,7 +84,7 @@ export class CellRenderMask {
       }
     }
 
-    const replacementRegions = [
+    const replacementRegions: Array<CellRegion> = [
       ...newLeadRegion,
       newMainRegion,
       ...newTailRegion,
@@ -93,7 +93,7 @@ export class CellRenderMask {
     this._regions.splice(
       firstIntersectIdx,
       numRegionsToDelete,
-      replacementRegions,
+      ...replacementRegions,
     );
   }
 
