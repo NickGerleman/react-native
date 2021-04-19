@@ -21,16 +21,24 @@ export class CellRenderMask {
   _regions: Array<CellRegion>;
 
   constructor(numCells: number) {
-    invariant(numCells >= 1, 'CellRenderMask must contain at least one cell');
+    invariant(
+      numCells >= 0,
+      'CellRenderMask must contain a non-negative number os cells',
+    );
 
     this._numCells = numCells;
-    this._regions = [
-      {
-        first: 0,
-        last: numCells - 1,
-        isSpacer: true,
-      },
-    ];
+
+    if (numCells === 0) {
+      this._regions = [];
+    } else {
+      this._regions = [
+        {
+          first: 0,
+          last: numCells - 1,
+          isSpacer: true,
+        },
+      ];
+    }
   }
 
   enumerateRegions(): $ReadOnlyArray<CellRegion> {

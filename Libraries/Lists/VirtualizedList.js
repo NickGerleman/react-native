@@ -323,7 +323,7 @@ let _keylessItemComponentName: string = '';
 type State = {
   renderMask: CellRenderMask,
   viewportWindow: {first: number, last: number},
-};
+} | null;
 
 /**
  * Base implementation for the more convenient [`<FlatList>`](https://reactnative.dev/docs/flatlist.html)
@@ -688,8 +688,8 @@ class VirtualizedList extends React.PureComponent<Props, State> {
     );
 
     invariant(
-      props.getItemCount && props.data,
-      'VirtualizedList: "getItemCount" and "data" props must be provided',
+      props.getItemCount,
+      'VirtualizedList: The "getItemCount" prop must be provided',
     );
 
     this._fillRateHelper = new FillRateHelper(this._getFrameMetrics);
@@ -734,15 +734,21 @@ class VirtualizedList extends React.PureComponent<Props, State> {
     viewportWindow: {first: number, last: number},
   ): State {
     const itemCount = props.getItemCount(props.data);
+
     invariant(
       viewportWindow.first >= 0 &&
-        viewportWindow.last >= viewportWindow.first &&
+        viewportWindow.last >= viewportWindow.first - 1 &&
         viewportWindow.last < itemCount,
-      'An invalid viewport window was passed to VirtualizedList._prepareState',
+      `Invalid viewport window "${JSON.stringify(
+        viewportWindow,
+      )}" was passed to VirtualizedList._prepareState`,
     );
 
     const renderMask = new CellRenderMask(itemCount);
-    renderMask.addCells(viewportWindow);
+
+    if (itemCount > 0) {
+      renderMask.addCells(viewportWindow);
+    }
 
     if (props.initialScrollIndex === 0) {
       const initialRegion = VirtualizedList._initialRenderRegion(props);
@@ -766,7 +772,11 @@ class VirtualizedList extends React.PureComponent<Props, State> {
 
     return {
       first: scrollIndex,
-      last: Math.min(itemCount - 1, scrollIndex + props.initialNumToRender),
+      last:
+        Math.min(
+          itemCount,
+          (props.initialScrollIndex || 0) + props.initialNumToRender,
+        ) - 1,
     };
   }
 
