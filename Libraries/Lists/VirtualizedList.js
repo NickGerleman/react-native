@@ -323,7 +323,7 @@ let _keylessItemComponentName: string = '';
 type State = {
   renderMask: CellRenderMask,
   viewportWindow: {first: number, last: number},
-} | null;
+};
 
 /**
  * Base implementation for the more convenient [`<FlatList>`](https://reactnative.dev/docs/flatlist.html)
