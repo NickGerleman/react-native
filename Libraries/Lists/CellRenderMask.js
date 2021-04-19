@@ -21,7 +21,7 @@ export class CellRenderMask {
   _regions: Array<CellRegion>;
 
   constructor(numCells: number) {
-    invariant(numCells >= 1);
+    invariant(numCells >= 1, 'CellRenderMask must contain at least one cell');
 
     this._numCells = numCells;
     this._regions = [
@@ -38,9 +38,14 @@ export class CellRenderMask {
   }
 
   addCells(cells: {first: number, last: number}) {
-    invariant(cells.first >= 0 && cells.first < this._numCells);
-    invariant(cells.last >= 0 && cells.last < this._numCells);
-    invariant(cells.last >= cells.first);
+    invariant(
+      cells.first >= 0 &&
+        cells.first < this._numCells &&
+        cells.last >= 0 &&
+        cells.last < this._numCells &&
+        cells.last >= cells.first,
+      'CellRenderMask.addCells called with invalid cell range',
+    );
 
     const [firstIntersect, firstIntersectIdx] = this._findRegion(cells.first);
     const [lastIntersect, lastIntersectIdx] = this._findRegion(cells.last);
@@ -115,7 +120,10 @@ export class CellRenderMask {
     const index = this._regions.findIndex(
       region => region.first <= cellIdx && region.last >= cellIdx,
     );
-    invariant(index !== -1);
+    invariant(
+      index !== -1,
+      `A region was not found containing cellIdx ${cellIdx}`,
+    );
     return [this._regions[index], index];
   }
 }

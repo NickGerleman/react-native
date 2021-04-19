@@ -738,6 +738,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
       viewportWindow.first >= 0 &&
         viewportWindow.last >= viewportWindow.first &&
         viewportWindow.last < itemCount,
+      'An invalid viewport window was passed to VirtualizedList._prepareState',
     );
 
     const renderMask = new CellRenderMask(itemCount);
