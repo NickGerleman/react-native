@@ -43,8 +43,6 @@ import {CellRenderMask} from './CellRenderMask';
 
 type Item = any;
 
-type RenderReason = 'initial-render' | 'props-invalidated' | 'batch-render';
-
 export type Separators = {
   highlight: () => void,
   unhighlight: () => void,
@@ -714,7 +712,10 @@ class VirtualizedList extends React.PureComponent<Props, State> {
       });
     }
 
-    let initialState = this._computeState('initial-render', props);
+    let initialState = VirtualizedList._prepareState(
+      props,
+      VirtualizedList._initialRenderRegion(props),
+    );
 
     if (this._isNestedWithSameOrientation()) {
       const storedState = this.context.getNestedChildState(this._getListKey());
@@ -728,66 +729,27 @@ class VirtualizedList extends React.PureComponent<Props, State> {
     this.state = initialState;
   }
 
-  static _computeState(
-    reason: RenderReason,
+  static _prepareState(
     props: Props,
-    prevState?: ?State,
+    viewportWindow: {first: number, last: number},
   ): State {
     const itemCount = props.getItemCount(props.data);
+    invariant(
+      viewportWindow.first >= 0 &&
+        viewportWindow.last >= viewportWindow.first &&
+        viewportWindow.last < itemCount,
+    );
 
     const renderMask = new CellRenderMask(itemCount);
-    let viewportWindow = {first: -1, last: -1};
+    renderMask.addCells(viewportWindow);
 
-    const initialRegion = _initialRenderRegion();
-    if (reason === 'initial-render' || this.props.initialScrollIndex === 0) {
+    if (props.initialScrollIndex === 0) {
+      const initialRegion = VirtualizedList._initialRenderRegion(props);
       renderMask.addCells(initialRegion);
     }
 
-    switch (reason) {
-      case 'initial-render': {
-        viewportWindow = initialRegion;
-        break;
-      }
-
-      case 'props-invalidated': {
-        // first and last could be stale (e.g. if a new, shorter items props is passed in), so we make
-        // sure we're rendering a reasonable range here.
-        const prevWindow = prevState.viewportWindow;
-
-        const constrainedWindow = {
-          first: Math.max(
-            0,
-            Math.min(
-              prevWindow.first,
-              itemCount - 1 - props.maxToRenderPerBatch,
-            ),
-          ),
-          last: Math.min(itemCount - 1, prevWindow.last),
-        };
-
-        viewportWindow = constrainedWindow;
-        renderMask.addCells(constrainedWindow);
-        break;
-      }
-
-      case 'batch-render': {
-        const adjustedWindow = this._adjustViewportWindow(
-          props,
-          renderMask,
-          prevState.viewportWindow,
-        );
-
-        viewportWindow = adjustedWindow;
-        renderMask.addCells(adjustedWindow);
-        break;
-      }
-    }
-
-    invariant(
-      viewportWindow.first >= 0 && viewportWindow.last >= viewportWindow.first,
-    );
     const stickyIndicesSet = new Set(props.stickyHeaderIndices);
-    this._ensureStickyHeaderBefore(
+    VirtualizedList._ensureStickyHeadersBefore(
       props,
       stickyIndicesSet,
       renderMask,
@@ -797,20 +759,17 @@ class VirtualizedList extends React.PureComponent<Props, State> {
     return {renderMask, viewportWindow};
   }
 
-  _initialRenderRegion(): {first: number, last: number} {
-    const itemCount = this.props.getItemCount(this.props.data);
-    const scrollIndex = this.props.initialScrollIndex || 0;
+  static _initialRenderRegion(props: Props): {first: number, last: number} {
+    const itemCount = props.getItemCount(props.data);
+    const scrollIndex = props.initialScrollIndex || 0;
 
     return {
       first: scrollIndex,
-      last: Math.min(
-        itemCount - 1,
-        scrollIndex + this.props.initialNumToRender,
-      ),
+      last: Math.min(itemCount - 1, scrollIndex + props.initialNumToRender),
     };
   }
 
-  _ensureStickyHeaderBefore(
+  static _ensureStickyHeadersBefore(
     props: Props,
     stickyIndicesSet: Set<number>,
     renderMask: CellRenderMask,
@@ -837,10 +796,10 @@ class VirtualizedList extends React.PureComponent<Props, State> {
     // Wait until the scroll view metrics have been set up. And until then,
     // we will trust the initialNumToRender suggestion
     if (visibleLength < 0 || contentLength < 0) {
-      return [viewportWindow, 0];
+      return viewportWindow;
     }
 
-    let newviewportWindow: {first: number, last: number} = null;
+    let newviewportWindow: {first: number, last: number};
     if (this._isVirtualizationDisabled()) {
       const distanceFromEnd = contentLength - visibleLength - offset;
 
@@ -864,7 +823,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
       // wait until we've scrolled the view to the right place. And until then,
       // we will trust the initialScrollIndex suggestion.
       if (this.props.initialScrollIndex && !this._scrollMetrics.offset) {
-        return [viewportWindow, 0];
+        return viewportWindow;
       }
 
       newviewportWindow = computeWindowedRenderLimits(
@@ -947,7 +906,10 @@ class VirtualizedList extends React.PureComponent<Props, State> {
   }
 
   static getDerivedStateFromProps(newProps: Props, prevState: State): State {
-    return this._computeState('props-invalidated', newProps, prevState);
+    return VirtualizedList._prepareState(
+      newProps,
+      VirtualizedList._constrainWindow(prevState, newProps),
+    );
   }
 
   _pushCells(
@@ -1001,6 +963,24 @@ class VirtualizedList extends React.PureComponent<Props, State> {
       );
       prevCellKey = key;
     }
+  }
+
+  static _constrainWindow(
+    prevState: State,
+    props: Props,
+  ): {first: number, last: number} {
+    // first and last could be stale (e.g. if a new, shorter items props is passed in), so we make
+    // sure we're rendering a reasonable range here.
+    const prevWindow = prevState.viewportWindow;
+
+    const itemCount = props.getItemCount(props.data);
+    return {
+      first: Math.max(
+        0,
+        Math.min(prevWindow.first, itemCount - 1 - props.maxToRenderPerBatch),
+      ),
+      last: Math.min(itemCount - 1, prevWindow.last),
+    };
   }
 
   _onUpdateSeparators = (keys: Array<?string>, newProps: Object) => {
@@ -1824,7 +1804,10 @@ class VirtualizedList extends React.PureComponent<Props, State> {
 
   _updateCellsToRender = () => {
     this.setState((state, props) => {
-      const nextState = this._computeState('batch-render', props, state);
+      const nextState = VirtualizedList._prepareState(
+        props,
+        this._adjustViewportWindow(props, state.viewportWindow),
+      );
 
       const viewportWindow = state.viewportWindow;
       const nextviewportWindow = nextState.viewportWindow;

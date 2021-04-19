@@ -97,7 +97,6 @@ function computeWindowedRenderLimits(
   prev: {
     first: number,
     last: number,
-    ...
   },
   getFrameMetricsApprox: (
     index: number,
@@ -116,7 +115,6 @@ function computeWindowedRenderLimits(
 ): {
   first: number,
   last: number,
-  ...
 } {
   const {data, getItemCount, maxToRenderPerBatch, windowSize} = props;
   const itemCount = getItemCount(data);

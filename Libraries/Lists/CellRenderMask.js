@@ -33,8 +33,8 @@ export class CellRenderMask {
     ];
   }
 
-  enumerateRegions(): Array<CellRegion> {
-    return [...this._regions];
+  enumerateRegions(): $ReadOnlyArray<CellRegion> {
+    return this._regions;
   }
 
   addCells(cells: {first: number, last: number}) {
