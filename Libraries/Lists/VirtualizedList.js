@@ -44,6 +44,7 @@ import {
 } from './VirtualizedListContext';
 
 import {CellRenderMask} from './CellRenderMask';
+import clamp from '../Utilities/clamp';
 
 type Item = any;
 
@@ -349,6 +350,19 @@ function scrollEventThrottleOrDefault(scrollEventThrottle: ?number) {
 // windowSizeOrDefault(this.props.windowSize)
 function windowSizeOrDefault(windowSize: ?number) {
   return windowSize ?? 21;
+}
+
+function findLastWhere<T>(
+  arr: Array<T>,
+  pred: (element: T) => boolean,
+): T | null {
+  for (let i = arr.length - 1; i >= 0; i--) {
+    if (pred(arr[i])) {
+      return arr[i];
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -1135,20 +1149,22 @@ class VirtualizedList extends React.PureComponent<Props, State> {
       const spacerKey = this._getSpacerKey(!horizontal);
 
       const renderRegions = this.state.renderMask.enumerateRegions();
-
-      // TODO something more efficient
-      const spacers = renderRegions.filter(section => section.isSpacer);
+      const lastSpacer = findLastWhere(renderRegions, r => r.isSpacer);
 
       for (const section of renderRegions) {
         if (section.isSpacer) {
           // Without getItemLayout, we limit our tail spacer to the _highestMeasuredFrameIndex to
           // prevent the user for hyperscrolling into un-measured area because otherwise content will
           // likely jump around as it renders in above the viewport.
-          const isLastSpacer = section === spacers[spacers.length - 1];
+          const isLastSpacer = section === lastSpacer;
           const constrainToMeasured = isLastSpacer && !this.props.getItemLayout;
           const last = constrainToMeasured
-            ? section.last
-            : Math.min(section.last, this._highestMeasuredFrameIndex);
+            ? clamp(
+                section.first - 1,
+                section.last,
+                this._highestMeasuredFrameIndex,
+              )
+            : section.last;
 
           const firstMetrics = this._getFrameMetricsApprox(section.first);
           const lastMetrics = this._getFrameMetricsApprox(last);
