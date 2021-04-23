@@ -900,6 +900,7 @@ it('renders initialNumToRender cells when virtualization disabled', () => {
     <VirtualizedList
       initialNumToRender={5}
       initialScrollIndex={1}
+      disableVirtualization
       {...baseItemProps(items)}
       {...fixedHeightItemLayoutProps(ITEM_HEIGHT)}
     />,
@@ -916,10 +917,11 @@ it('renders items before initialScrollIndex on first batch tick when virtualizat
   ReactTestRenderer.act(() => {
     component = ReactTestRenderer.create(
       <VirtualizedList
-        initialNumToRender={5}
-        initialScrollIndex={1}
+        initialNumToRender={1}
+        initialScrollIndex={4}
         windowSize={1}
         maxToRenderPerBatch={10}
+        disableVirtualization
         {...baseItemProps(items)}
         {...fixedHeightItemLayoutProps(ITEM_HEIGHT)}
       />,
@@ -949,6 +951,7 @@ it('eventually renders all items when virtualization disabled', () => {
         initialScrollIndex={1}
         windowSize={1}
         maxToRenderPerBatch={10}
+        disableVirtualization
         {...baseItemProps(items)}
         {...fixedHeightItemLayoutProps(ITEM_HEIGHT)}
       />,
