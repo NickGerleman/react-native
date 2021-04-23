@@ -124,14 +124,22 @@ export class CellRenderMask {
   }
 
   _findRegion(cellIdx: number): [CellRegion, number] {
-    // TODO replace with binary search
-    const index = this._regions.findIndex(
-      region => region.first <= cellIdx && region.last >= cellIdx,
-    );
-    invariant(
-      index !== -1,
-      `A region was not found containing cellIdx ${cellIdx}`,
-    );
-    return [this._regions[index], index];
+    let firstIdx = 0;
+    let lastIdx = this._regions.length - 1;
+
+    while (firstIdx <= lastIdx) {
+      const middleIdx = Math.floor((firstIdx + lastIdx) / 2);
+      const middleRegion = this._regions[middleIdx];
+
+      if (cellIdx >= middleRegion.first && cellIdx <= middleRegion.last) {
+        return [middleRegion, middleIdx];
+      } else if (cellIdx < middleRegion.first) {
+        lastIdx = middleIdx - 1;
+      } else if (cellIdx > middleRegion.last) {
+        firstIdx = middleIdx + 1;
+      }
+    }
+
+    invariant(false, `A region was not found containing cellIdx ${cellIdx}`);
   }
 }
