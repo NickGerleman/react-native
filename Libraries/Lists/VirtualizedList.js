@@ -770,7 +770,8 @@ class VirtualizedList extends React.PureComponent<Props, State> {
     if (itemCount > 0) {
       renderMask.addCells(viewportWindow);
 
-      if (props.initialScrollIndex === 0) {
+      const scrollIndex = props.initialScrollIndex || 0;
+      if (scrollIndex === 0) {
         const initialRegion = VirtualizedList._initialRenderRegion(props);
         renderMask.addCells(initialRegion);
       }
