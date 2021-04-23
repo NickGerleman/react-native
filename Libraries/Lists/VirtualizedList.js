@@ -769,20 +769,20 @@ class VirtualizedList extends React.PureComponent<Props, State> {
 
     if (itemCount > 0) {
       renderMask.addCells(viewportWindow);
-    }
 
-    if (props.initialScrollIndex === 0) {
-      const initialRegion = VirtualizedList._initialRenderRegion(props);
-      renderMask.addCells(initialRegion);
-    }
+      if (props.initialScrollIndex === 0) {
+        const initialRegion = VirtualizedList._initialRenderRegion(props);
+        renderMask.addCells(initialRegion);
+      }
 
-    const stickyIndicesSet = new Set(props.stickyHeaderIndices);
-    VirtualizedList._ensureStickyHeadersBefore(
-      props,
-      stickyIndicesSet,
-      renderMask,
-      viewportWindow.first,
-    );
+      const stickyIndicesSet = new Set(props.stickyHeaderIndices);
+      VirtualizedList._ensureStickyHeadersBefore(
+        props,
+        stickyIndicesSet,
+        renderMask,
+        viewportWindow.first,
+      );
+    }
 
     return {renderMask, viewportWindow};
   }
@@ -796,8 +796,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
       last:
         Math.min(
           itemCount,
-          (props.initialScrollIndex || 0) +
-            initialNumToRenderOrDefault(props.initialNumToRender),
+          scrollIndex + initialNumToRenderOrDefault(props.initialNumToRender),
         ) - 1,
     };
   }
@@ -828,7 +827,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
 
     // Wait until the scroll view metrics have been set up. And until then,
     // we will trust the initialNumToRender suggestion
-    if (visibleLength < 0 || contentLength < 0) {
+    if (visibleLength <= 0 || contentLength <= 0) {
       return viewportWindow;
     }
 
