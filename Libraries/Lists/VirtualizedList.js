@@ -315,7 +315,6 @@ let _keylessItemComponentName: string = '';
 type State = {
   renderMask: CellRenderMask,
   cellsAroundViewport: {first: number, last: number},
-  lastFocusedItem: ?number,
 };
 
 /**
@@ -739,7 +738,6 @@ class VirtualizedList extends React.PureComponent<Props, State> {
     let initialState: State = {
       cellsAroundViewport: initialRenderRegion,
       renderMask: VirtualizedList._createRenderMask(props, initialRenderRegion),
-      lastFocusedItem: null,
     };
 
     if (this._isNestedWithSameOrientation()) {
@@ -972,7 +970,6 @@ class VirtualizedList extends React.PureComponent<Props, State> {
     return {
       cellsAroundViewport: prevState.cellsAroundViewport,
       renderMask: VirtualizedList._createRenderMask(newProps, constrainedCells),
-      lastFocusedItem: prevState.lastFocusedItem,
     };
   }
 
@@ -1377,6 +1374,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
   _hiPriInProgress: boolean = false; // flag to prevent infinite hiPri cell limit update
   _highestMeasuredFrameIndex = 0;
   _indicesToKeys: Map<number, string> = new Map();
+  _lastFocusedItem: ?number = null;
   _nestedChildLists: Map<
     string,
     {
@@ -1486,12 +1484,16 @@ class VirtualizedList extends React.PureComponent<Props, State> {
   }
 
   _onCellFocusCapture(itemIndex: number) {
+    this._lastFocusedItem = itemIndex;
     const renderMask = VirtualizedList._createRenderMask(
       this.props,
       this.state.cellsAroundViewport,
-      itemIndex,
+      this._lastFocusedItem,
     );
-    this.setState({...this.state, renderMask, lastFocusedItem: itemIndex});
+
+    if (!renderMask.equals(this.state.renderMask)) {
+      this.setState({...this.state, renderMask});
+    }
   }
 
   _onCellUnmount = (cellKey: string) => {
@@ -1922,7 +1924,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
       const renderMask = VirtualizedList._createRenderMask(
         props,
         cellsAroundViewport,
-        state.lastFocusedItem,
+        this._lastFocusedItem,
       );
 
       if (
