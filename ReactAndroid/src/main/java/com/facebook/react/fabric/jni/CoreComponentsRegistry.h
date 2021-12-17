@@ -23,13 +23,13 @@ class CoreComponentsRegistry
 
   static void registerNatives();
 
-  CoreComponentsRegistry(ComponentFactory *delegate);
-
- private:
-  friend HybridBase;
+  explicit CoreComponentsRegistry(ComponentFactory *delegate);
 
   static std::shared_ptr<ComponentDescriptorProviderRegistry const>
   sharedProviderRegistry();
+
+ private:
+  friend HybridBase;
 
   const ComponentFactory *delegate_;
 

@@ -189,12 +189,11 @@ using namespace facebook::react;
   // `opacity`
   if (oldViewProps.opacity != newViewProps.opacity &&
       ![_propKeysManagedByAnimated_DO_NOT_USE_THIS_IS_BROKEN containsObject:@"opacity"]) {
-    self.layer.opacity = (CGFloat)newViewProps.opacity;
+    self.layer.opacity = (float)newViewProps.opacity;
     needsInvalidateLayer = YES;
   }
 
-  if (RCTGetRemoveClippedSubviewsEnabled() &&
-      oldViewProps.removeClippedSubviews != newViewProps.removeClippedSubviews) {
+  if (oldViewProps.removeClippedSubviews != newViewProps.removeClippedSubviews) {
     _removeClippedSubviews = newViewProps.removeClippedSubviews;
     if (_removeClippedSubviews && self.subviews.count > 0) {
       _reactSubviews = [NSMutableArray arrayWithArray:self.subviews];
@@ -228,7 +227,7 @@ using namespace facebook::react;
 
   // `shadowOpacity`
   if (oldViewProps.shadowOpacity != newViewProps.shadowOpacity) {
-    self.layer.shadowOpacity = (CGFloat)newViewProps.shadowOpacity;
+    self.layer.shadowOpacity = (float)newViewProps.shadowOpacity;
     needsInvalidateLayer = YES;
   }
 
@@ -418,7 +417,7 @@ using namespace facebook::react;
     self.layer.transform = RCTCATransform3DFromTransformMatrix(props.transform);
   }
   if ([_propKeysManagedByAnimated_DO_NOT_USE_THIS_IS_BROKEN containsObject:@"opacity"]) {
-    self.layer.opacity = (CGFloat)props.opacity;
+    self.layer.opacity = (float)props.opacity;
   }
 
   _propKeysManagedByAnimated_DO_NOT_USE_THIS_IS_BROKEN = nil;

@@ -12,7 +12,7 @@ buildscript {
     }
     dependencies {
         val kotlin_version: String by project
-        classpath("com.android.tools.build:gradle:4.2.2")
+        classpath("com.android.tools.build:gradle:7.0.1")
         classpath("de.undercouch:gradle-download-task:4.1.1")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version")
         // NOTE: Do not place your application dependencies here; they belong
@@ -46,4 +46,17 @@ allprojects {
         setProperty("ANDROID_NDK_VERSION", System.getenv("LOCAL_ANDROID_NDK_VERSION"))
         ext["ANDROID_NDK_PATH"] =  System.getenv("ANDROID_NDK")
     }
+}
+
+tasks.register("cleanAll", Delete::class.java) {
+    description = "Remove all the build files and intermediate build outputs"
+    dependsOn(gradle.includedBuild("react-native-gradle-plugin").task(":clean"))
+    delete(allprojects.map { it.buildDir })
+    delete(rootProject.file("./ReactAndroid/.cxx"))
+    delete(rootProject.file("./ReactAndroid/src/main/jni/prebuilt/lib/arm64-v8a/"))
+    delete(rootProject.file("./ReactAndroid/src/main/jni/prebuilt/lib/armeabi-v7a/"))
+    delete(rootProject.file("./ReactAndroid/src/main/jni/prebuilt/lib/x86/"))
+    delete(rootProject.file("./ReactAndroid/src/main/jni/prebuilt/lib/x86_64/"))
+    delete(rootProject.file("./packages/react-native-codegen/lib"))
+    delete(rootProject.file("./packages/rn-tester/android/app/.cxx"))
 }

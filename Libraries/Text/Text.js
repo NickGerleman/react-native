@@ -21,7 +21,7 @@ import {useContext, useMemo, useState} from 'react';
 /**
  * Text is the fundamental component for displaying text.
  *
- * @see https://reactnative.dev/docs/text.html
+ * @see https://reactnative.dev/docs/text
  */
 const Text: React.AbstractComponent<
   TextProps,
@@ -163,6 +163,7 @@ const Text: React.AbstractComponent<
       {...restProps}
       {...eventHandlersForText}
       isHighlighted={isHighlighted}
+      isPressable={isPressable}
       numberOfLines={numberOfLines}
       selectionColor={selectionColor}
       style={style}
