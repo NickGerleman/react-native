@@ -755,7 +755,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
   static _createRenderMask(
     props: Props,
     cellsAroundViewport: {first: number, last: number},
-    lastFocusedItem: ?number,
+    additionalRegions?: ?$ReadOnlyArray<{first: number, last: number}>,
   ): CellRenderMask {
     const itemCount = props.getItemCount(props.data);
 
@@ -768,17 +768,12 @@ class VirtualizedList extends React.PureComponent<Props, State> {
 
     const renderMask = new CellRenderMask(itemCount);
 
-    // Keep the items around the last focused rendered, to allow for keyboard
-    // navigation
-    if (lastFocusedItem) {
-      const first = Math.max(0, lastFocusedItem - 1);
-      const last = Math.min(itemCount - 1, lastFocusedItem + 1);
-      renderMask.addCells({first, last});
-    }
-
     if (itemCount > 0) {
-      if (cellsAroundViewport.last >= cellsAroundViewport.first) {
-        renderMask.addCells(cellsAroundViewport);
+      const allRegions = [cellsAroundViewport, ...(additionalRegions ?? [])];
+      for (const region of allRegions) {
+        if (region.last >= region.first) {
+          renderMask.addCells(region);
+        }
       }
 
       // The initially rendered cells are retained as part of the
@@ -1016,7 +1011,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
           prevCellKey={prevCellKey}
           onUpdateSeparators={this._onUpdateSeparators}
           onLayout={e => this._onCellLayout(e, key, ii)}
-          onFocusCapture={e => this._onCellFocusCapture(ii)}
+          onFocusCapture={e => this._onCellFocusCapture(key)}
           onUnmount={this._onCellUnmount}
           parentProps={this.props}
           ref={ref => {
@@ -1364,7 +1359,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
   _averageCellLength = 0;
   // Maps a cell key to the set of keys for all outermost child lists within that cell
   _cellKeysToChildListKeys: Map<string, Set<string>> = new Map();
-  _cellRefs = {};
+  _cellRefs: {[string]: ?CellRenderer} = {};
   _fillRateHelper: FillRateHelper;
   _frames = {};
   _footerLength = 0;
@@ -1376,7 +1371,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
   _hiPriInProgress: boolean = false; // flag to prevent infinite hiPri cell limit update
   _highestMeasuredFrameIndex = 0;
   _indicesToKeys: Map<number, string> = new Map();
-  _lastFocusedItem: ?number = null;
+  _lastFocusedCellKey: ?string = null;
   _nestedChildLists: Map<
     string,
     {
@@ -1485,12 +1480,12 @@ class VirtualizedList extends React.PureComponent<Props, State> {
     this._updateViewableItems(this.props.data);
   }
 
-  _onCellFocusCapture(itemIndex: number) {
-    this._lastFocusedItem = itemIndex;
+  _onCellFocusCapture(cellKey: string) {
+    this._lastFocusedCellKey = cellKey;
     const renderMask = VirtualizedList._createRenderMask(
       this.props,
       this.state.cellsAroundViewport,
-      this._lastFocusedItem,
+      this._getNonViewportRenderRegions(),
     );
 
     if (!renderMask.equals(this.state.renderMask)) {
@@ -1847,7 +1842,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
     }
     // Mark as high priority if we're close to the end of the last item
     // But only if there are items after the last rendered item
-    if (last < itemCount - 1) {
+    if (last > 0 && last < itemCount - 1) {
       const distBottom =
         this._getFrameMetricsApprox(last).offset - (offset + visibleLength);
       hiPri =
@@ -1926,7 +1921,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
       const renderMask = VirtualizedList._createRenderMask(
         props,
         cellsAroundViewport,
-        this._lastFocusedItem,
+        this._getNonViewportRenderRegions(),
       );
 
       if (
@@ -1959,7 +1954,11 @@ class VirtualizedList extends React.PureComponent<Props, State> {
       // check for invalid frames due to row re-ordering
       return frame;
     } else {
-      const {getItemLayout} = this.props;
+      const {data, getItemCount, getItemLayout} = this.props;
+      invariant(
+        index >= 0 && index < getItemCount(data),
+        'Tried to get frame for out of range index ' + index,
+      );
       invariant(
         !getItemLayout,
         'Should not have to estimate frames when a measurement metrics function is provided',
@@ -1982,7 +1981,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
   } => {
     const {data, getItem, getItemCount, getItemLayout} = this.props;
     invariant(
-      getItemCount(data) > index,
+      index >= 0 && index < getItemCount(data),
       'Tried to get frame for out of range index ' + index,
     );
     const item = getItem(data, index);
@@ -1996,6 +1995,57 @@ class VirtualizedList extends React.PureComponent<Props, State> {
      * suppresses an error found when Flow v0.63 was deployed. To see the error
      * delete this comment and run Flow. */
     return frame;
+  };
+
+  _getNonViewportRenderRegions = (): $ReadOnlyArray<{
+    first: number,
+    last: number,
+  }> => {
+    // Keep a viewport's worth of content around the last focused cell to allow
+    // random navigation around it without any blanking. E.g. tabbing from one
+    // focused item out of viewport to another.
+    if (
+      !(this._lastFocusedCellKey && this._cellRefs[this._lastFocusedCellKey])
+    ) {
+      return [];
+    }
+
+    const lastFocusedCellRenderer = this._cellRefs[this._lastFocusedCellKey];
+    const focusedCellIndex = lastFocusedCellRenderer.props.index;
+    const itemCount = this.props.getItemCount(this.props.data);
+
+    // The cell may have been unmounted and have a stale index
+    if (
+      focusedCellIndex >= itemCount ||
+      this._indicesToKeys.get(focusedCellIndex) !== this._lastFocusedCellKey
+    ) {
+      return [];
+    }
+
+    let first = focusedCellIndex;
+    let heightOfCellsBeforeFocused = 0;
+    for (
+      let i = first - 1;
+      i >= 0 && heightOfCellsBeforeFocused < this._scrollMetrics.visibleLength;
+      i--
+    ) {
+      first--;
+      heightOfCellsBeforeFocused += this._getFrameMetricsApprox(i).length;
+    }
+
+    let last = focusedCellIndex;
+    let heightOfCellsAfterFocused = 0;
+    for (
+      let i = last + 1;
+      i < itemCount &&
+      heightOfCellsAfterFocused < this._scrollMetrics.visibleLength;
+      i++
+    ) {
+      last++;
+      heightOfCellsAfterFocused += this._getFrameMetricsApprox(i).length;
+    }
+
+    return [{first, last}];
   };
 
   _updateViewableItems(data: any) {
