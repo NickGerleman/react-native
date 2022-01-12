@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -492,6 +492,110 @@ TEST_F(RuntimeSchedulerTest, handlingError) {
   EXPECT_TRUE(didRunTask);
   EXPECT_EQ(stubQueue_->size(), 0);
   EXPECT_EQ(stubErrorUtils_->getReportFatalCallCount(), 1);
+}
+
+TEST_F(RuntimeSchedulerTest, basicSameThreadExecution) {
+  bool didRunSynchronousTask = false;
+  std::thread t1([this, &didRunSynchronousTask]() {
+    runtimeScheduler_->executeNowOnTheSameThread(
+        [this, &didRunSynchronousTask](jsi::Runtime &rt) {
+          EXPECT_TRUE(runtimeScheduler_->getIsSynchronous());
+          didRunSynchronousTask = true;
+        });
+    EXPECT_FALSE(runtimeScheduler_->getIsSynchronous());
+  });
+
+  auto hasTask = stubQueue_->waitForTask(1ms);
+
+  EXPECT_TRUE(hasTask);
+  EXPECT_FALSE(didRunSynchronousTask);
+  EXPECT_EQ(stubQueue_->size(), 1);
+
+  stubQueue_->tick();
+
+  t1.join();
+
+  EXPECT_TRUE(didRunSynchronousTask);
+}
+
+TEST_F(RuntimeSchedulerTest, sameThreadTaskCreatesImmediatePriorityTask) {
+  bool didRunSynchronousTask = false;
+  bool didRunSubsequentTask = false;
+  std::thread t1([this, &didRunSynchronousTask, &didRunSubsequentTask]() {
+    runtimeScheduler_->executeNowOnTheSameThread(
+        [this, &didRunSynchronousTask, &didRunSubsequentTask](
+            jsi::Runtime &rt) {
+          didRunSynchronousTask = true;
+
+          auto callback = createHostFunctionFromLambda(
+              [&didRunSubsequentTask](bool didUserCallbackTimeout) {
+                didRunSubsequentTask = true;
+                EXPECT_FALSE(didUserCallbackTimeout);
+                return jsi::Value::undefined();
+              });
+
+          runtimeScheduler_->scheduleTask(
+              SchedulerPriority::ImmediatePriority, std::move(callback));
+        });
+  });
+
+  auto hasTask = stubQueue_->waitForTask(1ms);
+
+  EXPECT_TRUE(hasTask);
+  EXPECT_FALSE(didRunSynchronousTask);
+  EXPECT_FALSE(didRunSubsequentTask);
+  EXPECT_EQ(stubQueue_->size(), 1);
+
+  stubQueue_->tick();
+
+  t1.join();
+
+  EXPECT_TRUE(didRunSynchronousTask);
+  EXPECT_TRUE(didRunSubsequentTask);
+}
+
+TEST_F(RuntimeSchedulerTest, sameThreadTaskCreatesLowPriorityTask) {
+  bool didRunSynchronousTask = false;
+  bool didRunSubsequentTask = false;
+  std::thread t1([this, &didRunSynchronousTask, &didRunSubsequentTask]() {
+    runtimeScheduler_->executeNowOnTheSameThread(
+        [this, &didRunSynchronousTask, &didRunSubsequentTask](
+            jsi::Runtime &rt) {
+          didRunSynchronousTask = true;
+
+          auto callback = createHostFunctionFromLambda(
+              [&didRunSubsequentTask](bool didUserCallbackTimeout) {
+                didRunSubsequentTask = true;
+                EXPECT_FALSE(didUserCallbackTimeout);
+                return jsi::Value::undefined();
+              });
+
+          runtimeScheduler_->scheduleTask(
+              SchedulerPriority::LowPriority, std::move(callback));
+        });
+  });
+
+  auto hasTask = stubQueue_->waitForTask(1ms);
+
+  EXPECT_TRUE(hasTask);
+  EXPECT_FALSE(didRunSynchronousTask);
+  EXPECT_FALSE(didRunSubsequentTask);
+  EXPECT_EQ(stubQueue_->size(), 1);
+
+  stubQueue_->tick();
+
+  t1.join();
+
+  EXPECT_TRUE(didRunSynchronousTask);
+  EXPECT_FALSE(didRunSubsequentTask);
+
+  EXPECT_EQ(stubQueue_->size(), 1);
+
+  stubQueue_->tick();
+
+  EXPECT_TRUE(didRunSubsequentTask);
+
+  EXPECT_EQ(stubQueue_->size(), 0);
 }
 
 } // namespace facebook::react

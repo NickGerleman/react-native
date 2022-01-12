@@ -1,5 +1,5 @@
 /**
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -1442,6 +1442,184 @@ it('renders windowSize derived region at bottom', () => {
   // means we should render the bottom 4 10-dip items (for the current viewport,
   // and 20dip above), along with retaining the top initialNumToRenderItems. We
   // seem to actually render 4 at the bottom due to rounding at the moment.
+  expect(component).toMatchSnapshot();
+});
+
+it('keeps viewport below last focused rendered', () => {
+  const items = generateItems(20);
+  const ITEM_HEIGHT = 10;
+
+  let component;
+  ReactTestRenderer.act(() => {
+    component = ReactTestRenderer.create(
+      <VirtualizedList
+        initialNumToRender={1}
+        windowSize={1}
+        {...baseItemProps(items)}
+        {...fixedHeightItemLayoutProps(ITEM_HEIGHT)}
+      />,
+    );
+  });
+
+  ReactTestRenderer.act(() => {
+    simulateLayout(component, {
+      viewport: {width: 10, height: 50},
+      content: {width: 10, height: 200},
+    });
+
+    performAllBatches();
+  });
+
+  ReactTestRenderer.act(() => {
+    component.getInstance()._onCellFocusCapture(3);
+  });
+
+  ReactTestRenderer.act(() => {
+    simulateScroll(component, {x: 0, y: 150});
+    performAllBatches();
+  });
+
+  // Cells 1-8 should remain rendered after scrolling to the bottom of the list
+  expect(component).toMatchSnapshot();
+});
+
+it('virtualizes away last focused item if focus changes to a new cell', () => {
+  const items = generateItems(20);
+  const ITEM_HEIGHT = 10;
+
+  let component;
+  ReactTestRenderer.act(() => {
+    component = ReactTestRenderer.create(
+      <VirtualizedList
+        initialNumToRender={1}
+        windowSize={1}
+        {...baseItemProps(items)}
+        {...fixedHeightItemLayoutProps(ITEM_HEIGHT)}
+      />,
+    );
+  });
+
+  ReactTestRenderer.act(() => {
+    simulateLayout(component, {
+      viewport: {width: 10, height: 50},
+      content: {width: 10, height: 200},
+    });
+
+    performAllBatches();
+  });
+
+  ReactTestRenderer.act(() => {
+    component.getInstance()._onCellFocusCapture(3);
+  });
+
+  ReactTestRenderer.act(() => {
+    simulateScroll(component, {x: 0, y: 150});
+    performAllBatches();
+  });
+
+  ReactTestRenderer.act(() => {
+    component.getInstance()._onCellFocusCapture(17);
+  });
+
+  // Cells 1-8 should no longer be rendered after focus is moved to the end of
+  // the list
+  expect(component).toMatchSnapshot();
+});
+
+it('keeps viewport above last focused rendered', () => {
+  const items = generateItems(20);
+  const ITEM_HEIGHT = 10;
+
+  let component;
+  ReactTestRenderer.act(() => {
+    component = ReactTestRenderer.create(
+      <VirtualizedList
+        initialNumToRender={1}
+        windowSize={1}
+        {...baseItemProps(items)}
+        {...fixedHeightItemLayoutProps(ITEM_HEIGHT)}
+      />,
+    );
+  });
+
+  ReactTestRenderer.act(() => {
+    simulateLayout(component, {
+      viewport: {width: 10, height: 50},
+      content: {width: 10, height: 200},
+    });
+
+    performAllBatches();
+  });
+
+  ReactTestRenderer.act(() => {
+    component.getInstance()._onCellFocusCapture(3);
+  });
+
+  ReactTestRenderer.act(() => {
+    simulateScroll(component, {x: 0, y: 150});
+    performAllBatches();
+  });
+
+  ReactTestRenderer.act(() => {
+    component.getInstance()._onCellFocusCapture(17);
+  });
+
+  ReactTestRenderer.act(() => {
+    simulateScroll(component, {x: 0, y: 0});
+    performAllBatches();
+  });
+
+  // Cells 12-19 should remain rendered after scrolling to the top of the list
+  expect(component).toMatchSnapshot();
+});
+
+it('virtualizes away last focused index if item removed', () => {
+  const items = generateItems(20);
+  const ITEM_HEIGHT = 10;
+
+  let component;
+  ReactTestRenderer.act(() => {
+    component = ReactTestRenderer.create(
+      <VirtualizedList
+        initialNumToRender={1}
+        windowSize={1}
+        {...baseItemProps(items)}
+        {...fixedHeightItemLayoutProps(ITEM_HEIGHT)}
+      />,
+    );
+  });
+
+  ReactTestRenderer.act(() => {
+    simulateLayout(component, {
+      viewport: {width: 10, height: 50},
+      content: {width: 10, height: 200},
+    });
+
+    performAllBatches();
+  });
+
+  ReactTestRenderer.act(() => {
+    component.getInstance()._onCellFocusCapture(3);
+  });
+
+  ReactTestRenderer.act(() => {
+    simulateScroll(component, {x: 0, y: 150});
+    performAllBatches();
+  });
+
+  const itemsWithoutFocused = [...items.slice(0, 3), ...items.slice(4)];
+  ReactTestRenderer.act(() => {
+    component.update(
+      <VirtualizedList
+        initialNumToRender={1}
+        windowSize={1}
+        {...baseItemProps(itemsWithoutFocused)}
+        {...fixedHeightItemLayoutProps(ITEM_HEIGHT)}
+      />,
+    );
+  });
+
+  // Cells 1-8 should no longer be rendered
   expect(component).toMatchSnapshot();
 });
 

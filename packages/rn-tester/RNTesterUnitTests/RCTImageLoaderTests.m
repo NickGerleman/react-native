@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -70,7 +70,8 @@ RCTDefineImageURLLoader(RCTImageLoaderTestsURLLoader1) RCTDefineImageURLLoader(R
         XCTAssertEqual(progress, 1);
         XCTAssertEqual(total, 1);
       }
-      partialLoadBlock:nil
+      partialLoadBlock:^(UIImage *loadedImage) {
+      }
       completionBlock:^(NSError *loadError, id loadedImage) {
         XCTAssertEqualObjects(loadedImage, image);
         XCTAssertNil(loadError);
@@ -129,7 +130,8 @@ RCTDefineImageURLLoader(RCTImageLoaderTestsURLLoader1) RCTDefineImageURLLoader(R
         XCTAssertEqual(progress, 1);
         XCTAssertEqual(total, 1);
       }
-      partialLoadBlock:nil
+      partialLoadBlock:^(UIImage *loadedImage) {
+      }
       completionBlock:^(NSError *loadError, id loadedImage) {
         XCTAssertEqualObjects(loadedImage, image);
         XCTAssertNil(loadError);

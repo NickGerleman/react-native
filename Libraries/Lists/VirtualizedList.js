@@ -1,5 +1,5 @@
 /**
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -41,6 +41,7 @@ import {
   type ChildListState,
   type ListDebugInfo,
 } from './VirtualizedListContext';
+import type {FocusEvent} from '../Types/CoreEventTypes';
 
 import {CellRenderMask} from './CellRenderMask';
 import clamp from '../Utilities/clamp';
@@ -365,8 +366,8 @@ function findLastWhere<T>(
 }
 
 /**
- * Base implementation for the more convenient [`<FlatList>`](https://reactnative.dev/docs/flatlist.html)
- * and [`<SectionList>`](https://reactnative.dev/docs/sectionlist.html) components, which are also better
+ * Base implementation for the more convenient [`<FlatList>`](https://reactnative.dev/docs/flatlist)
+ * and [`<SectionList>`](https://reactnative.dev/docs/sectionlist) components, which are also better
  * documented. In general, this should only really be used if you need more flexibility than
  * `FlatList` provides, e.g. for use with immutable data instead of plain arrays.
  *
@@ -754,6 +755,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
   static _createRenderMask(
     props: Props,
     cellsAroundViewport: {first: number, last: number},
+    additionalRegions?: ?$ReadOnlyArray<{first: number, last: number}>,
   ): CellRenderMask {
     const itemCount = props.getItemCount(props.data);
 
@@ -767,7 +769,12 @@ class VirtualizedList extends React.PureComponent<Props, State> {
     const renderMask = new CellRenderMask(itemCount);
 
     if (itemCount > 0) {
-      renderMask.addCells(cellsAroundViewport);
+      const allRegions = [cellsAroundViewport, ...(additionalRegions ?? [])];
+      for (const region of allRegions) {
+        if (region.last >= region.first) {
+          renderMask.addCells(region);
+        }
+      }
 
       // The initially rendered cells are retained as part of the
       // "scroll-to-top" optimization
@@ -958,7 +965,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
     );
 
     return {
-      cellsAroundViewport: prevState.cellsAroundViewport,
+      cellsAroundViewport: constrainedCells,
       renderMask: VirtualizedList._createRenderMask(newProps, constrainedCells),
     };
   }
@@ -1004,6 +1011,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
           prevCellKey={prevCellKey}
           onUpdateSeparators={this._onUpdateSeparators}
           onLayout={e => this._onCellLayout(e, key, ii)}
+          onFocusCapture={e => this._onCellFocusCapture(key)}
           onUnmount={this._onCellUnmount}
           parentProps={this.props}
           ref={ref => {
@@ -1351,7 +1359,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
   _averageCellLength = 0;
   // Maps a cell key to the set of keys for all outermost child lists within that cell
   _cellKeysToChildListKeys: Map<string, Set<string>> = new Map();
-  _cellRefs = {};
+  _cellRefs: {[string]: ?CellRenderer} = {};
   _fillRateHelper: FillRateHelper;
   _frames = {};
   _footerLength = 0;
@@ -1363,6 +1371,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
   _hiPriInProgress: boolean = false; // flag to prevent infinite hiPri cell limit update
   _highestMeasuredFrameIndex = 0;
   _indicesToKeys: Map<number, string> = new Map();
+  _lastFocusedCellKey: ?string = null;
   _nestedChildLists: Map<
     string,
     {
@@ -1469,6 +1478,19 @@ class VirtualizedList extends React.PureComponent<Props, State> {
 
     this._computeBlankness();
     this._updateViewableItems(this.props.data);
+  }
+
+  _onCellFocusCapture(cellKey: string) {
+    this._lastFocusedCellKey = cellKey;
+    const renderMask = VirtualizedList._createRenderMask(
+      this.props,
+      this.state.cellsAroundViewport,
+      this._getNonViewportRenderRegions(),
+    );
+
+    if (!renderMask.equals(this.state.renderMask)) {
+      this.setState({...this.state, renderMask});
+    }
   }
 
   _onCellUnmount = (cellKey: string) => {
@@ -1820,7 +1842,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
     }
     // Mark as high priority if we're close to the end of the last item
     // But only if there are items after the last rendered item
-    if (last < itemCount - 1) {
+    if (last > 0 && last < itemCount - 1) {
       const distBottom =
         this._getFrameMetricsApprox(last).offset - (offset + visibleLength);
       hiPri =
@@ -1899,6 +1921,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
       const renderMask = VirtualizedList._createRenderMask(
         props,
         cellsAroundViewport,
+        this._getNonViewportRenderRegions(),
       );
 
       if (
@@ -1931,7 +1954,11 @@ class VirtualizedList extends React.PureComponent<Props, State> {
       // check for invalid frames due to row re-ordering
       return frame;
     } else {
-      const {getItemLayout} = this.props;
+      const {data, getItemCount, getItemLayout} = this.props;
+      invariant(
+        index >= 0 && index < getItemCount(data),
+        'Tried to get frame for out of range index ' + index,
+      );
       invariant(
         !getItemLayout,
         'Should not have to estimate frames when a measurement metrics function is provided',
@@ -1954,7 +1981,7 @@ class VirtualizedList extends React.PureComponent<Props, State> {
   } => {
     const {data, getItem, getItemCount, getItemLayout} = this.props;
     invariant(
-      getItemCount(data) > index,
+      index >= 0 && index < getItemCount(data),
       'Tried to get frame for out of range index ' + index,
     );
     const item = getItem(data, index);
@@ -1968,6 +1995,57 @@ class VirtualizedList extends React.PureComponent<Props, State> {
      * suppresses an error found when Flow v0.63 was deployed. To see the error
      * delete this comment and run Flow. */
     return frame;
+  };
+
+  _getNonViewportRenderRegions = (): $ReadOnlyArray<{
+    first: number,
+    last: number,
+  }> => {
+    // Keep a viewport's worth of content around the last focused cell to allow
+    // random navigation around it without any blanking. E.g. tabbing from one
+    // focused item out of viewport to another.
+    if (
+      !(this._lastFocusedCellKey && this._cellRefs[this._lastFocusedCellKey])
+    ) {
+      return [];
+    }
+
+    const lastFocusedCellRenderer = this._cellRefs[this._lastFocusedCellKey];
+    const focusedCellIndex = lastFocusedCellRenderer.props.index;
+    const itemCount = this.props.getItemCount(this.props.data);
+
+    // The cell may have been unmounted and have a stale index
+    if (
+      focusedCellIndex >= itemCount ||
+      this._indicesToKeys.get(focusedCellIndex) !== this._lastFocusedCellKey
+    ) {
+      return [];
+    }
+
+    let first = focusedCellIndex;
+    let heightOfCellsBeforeFocused = 0;
+    for (
+      let i = first - 1;
+      i >= 0 && heightOfCellsBeforeFocused < this._scrollMetrics.visibleLength;
+      i--
+    ) {
+      first--;
+      heightOfCellsBeforeFocused += this._getFrameMetricsApprox(i).length;
+    }
+
+    let last = focusedCellIndex;
+    let heightOfCellsAfterFocused = 0;
+    for (
+      let i = last + 1;
+      i < itemCount &&
+      heightOfCellsAfterFocused < this._scrollMetrics.visibleLength;
+      i++
+    ) {
+      last++;
+      heightOfCellsAfterFocused += this._getFrameMetricsApprox(i).length;
+    }
+
+    return [{first, last}];
   };
 
   _updateViewableItems(data: any) {
@@ -2018,6 +2096,7 @@ type CellRendererProps = {
     ...
   },
   prevCellKey: ?string,
+  onFocusCapture: (event: FocusEvent) => mixed,
   ...
 };
 
@@ -2132,6 +2211,7 @@ class CellRenderer extends React.Component<
       index,
       inversionStyle,
       parentProps,
+      onFocusCapture,
     } = this.props;
     const {renderItem, getItemLayout, ListItemComponent} = parentProps;
     const element = this._renderElement(
@@ -2161,10 +2241,14 @@ class CellRenderer extends React.Component<
       ? [styles.row, inversionStyle]
       : inversionStyle;
     const result = !CellRendererComponent ? (
-      /* $FlowFixMe[incompatible-type-arg] (>=0.89.0 site=react_native_fb) *
+      <View
+        style={cellStyle}
+        onLayout={onLayout}
+        onFocusCapture={onFocusCapture}
+        /* $FlowFixMe[incompatible-type-arg] (>=0.89.0 site=react_native_fb) *
         This comment suppresses an error found when Flow v0.89 was deployed. *
         To see the error, delete this comment and run Flow. */
-      <View style={cellStyle} onLayout={onLayout}>
+      >
         {element}
         {itemSeparator}
       </View>
@@ -2172,7 +2256,8 @@ class CellRenderer extends React.Component<
       <CellRendererComponent
         {...this.props}
         style={cellStyle}
-        onLayout={onLayout}>
+        onLayout={onLayout}
+        onFocusCapture={onFocusCapture}>
         {element}
         {itemSeparator}
       </CellRendererComponent>
