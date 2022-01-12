@@ -1,5 +1,5 @@
 /**
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -366,8 +366,8 @@ function findLastWhere<T>(
 }
 
 /**
- * Base implementation for the more convenient [`<FlatList>`](https://reactnative.dev/docs/flatlist.html)
- * and [`<SectionList>`](https://reactnative.dev/docs/sectionlist.html) components, which are also better
+ * Base implementation for the more convenient [`<FlatList>`](https://reactnative.dev/docs/flatlist)
+ * and [`<SectionList>`](https://reactnative.dev/docs/sectionlist) components, which are also better
  * documented. In general, this should only really be used if you need more flexibility than
  * `FlatList` provides, e.g. for use with immutable data instead of plain arrays.
  *

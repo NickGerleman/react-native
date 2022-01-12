@@ -4,7 +4,7 @@ exports[`GenerateViewConfigJs can generate for 'ArrayPropsNativeComponent.js' 1`
 Map {
   "RNCodegenModuleFixturesNativeViewConfig.js" => "
 /**
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -47,7 +47,7 @@ exports[`GenerateViewConfigJs can generate for 'BooleanPropNativeComponent.js' 1
 Map {
   "RNCodegenModuleFixturesNativeViewConfig.js" => "
 /**
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -79,7 +79,7 @@ exports[`GenerateViewConfigJs can generate for 'ColorPropNativeComponent.js' 1`]
 Map {
   "RNCodegenModuleFixturesNativeViewConfig.js" => "
 /**
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -112,7 +112,7 @@ exports[`GenerateViewConfigJs can generate for 'EdgeInsetsPropNativeComponent.js
 Map {
   "RNCodegenModuleFixturesNativeViewConfig.js" => "
 /**
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -140,7 +140,7 @@ exports[`GenerateViewConfigJs can generate for 'EnumPropNativeComponent.js' 1`] 
 Map {
   "RNCodegenModuleFixturesNativeViewConfig.js" => "
 /**
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -172,7 +172,7 @@ exports[`GenerateViewConfigJs can generate for 'EventNestedObjectPropsNativeComp
 Map {
   "RNCodegenModuleFixturesNativeViewConfig.js" => "
 /**
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -202,7 +202,6 @@ export default NativeComponentRegistry.get(nativeComponentName, () => ({
 
   validAttributes: {
     disabled: true,
-    onChange: true,
   },
 }));
 ",
@@ -213,7 +212,7 @@ exports[`GenerateViewConfigJs can generate for 'EventPropsNativeComponent.js' 1`
 Map {
   "RNCodegenModuleFixturesNativeViewConfig.js" => "
 /**
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -240,13 +239,6 @@ export default NativeComponentRegistry.get(nativeComponentName, () => ({
       },
     },
 
-    topChange: {
-      phasedRegistrationNames: {
-        captured: 'onChangeCapture',
-        bubbled: 'onChange',
-      },
-    },
-
     topEnd: {
       phasedRegistrationNames: {
         captured: 'onEndCapture',
@@ -255,13 +247,6 @@ export default NativeComponentRegistry.get(nativeComponentName, () => ({
     },
 
     paperBubblingName: {
-      phasedRegistrationNames: {
-        captured: 'onEventBubblingWithPaperNameCapture',
-        bubbled: 'onEventBubblingWithPaperName',
-      },
-    },
-
-    topEventBubblingWithPaperName: {
       phasedRegistrationNames: {
         captured: 'onEventBubblingWithPaperNameCapture',
         bubbled: 'onEventBubblingWithPaperName',
@@ -278,27 +263,13 @@ export default NativeComponentRegistry.get(nativeComponentName, () => ({
       registrationName: 'onEventDirectWithPaperName',
     },
 
-    topEventDirectWithPaperName: {
-      registrationName: 'onEventDirectWithPaperName',
-    },
-
     paperBubblingName: {
-      registrationName: 'onOrientationChange',
-    },
-
-    topOrientationChange: {
       registrationName: 'onOrientationChange',
     },
   },
 
   validAttributes: {
     disabled: true,
-    onChange: true,
-    onEventDirect: true,
-    onEventDirectWithPaperName: true,
-    onOrientationChange: true,
-    onEnd: true,
-    onEventBubblingWithPaperName: true,
   },
 }));
 ",
@@ -309,7 +280,7 @@ exports[`GenerateViewConfigJs can generate for 'FloatPropsNativeComponent.js' 1`
 Map {
   "RNCodegenModuleFixturesNativeViewConfig.js" => "
 /**
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -346,7 +317,7 @@ exports[`GenerateViewConfigJs can generate for 'ImagePropNativeComponent.js' 1`]
 Map {
   "RNCodegenModuleFixturesNativeViewConfig.js" => "
 /**
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -379,7 +350,7 @@ exports[`GenerateViewConfigJs can generate for 'IntegerPropNativeComponent.js' 1
 Map {
   "RNCodegenModuleFixturesNativeViewConfig.js" => "
 /**
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -412,7 +383,7 @@ exports[`GenerateViewConfigJs can generate for 'InterfaceOnlyNativeComponent.js'
 Map {
   "RNCodegenModuleFixturesNativeViewConfig.js" => "
 /**
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -442,7 +413,6 @@ export default NativeComponentRegistry.get(nativeComponentName, () => ({
 
   validAttributes: {
     title: true,
-    onChange: true,
   },
 }));
 ",
@@ -453,7 +423,7 @@ exports[`GenerateViewConfigJs can generate for 'MultiNativePropNativeComponent.j
 Map {
   "RNCodegenModuleFixturesNativeViewConfig.js" => "
 /**
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -498,7 +468,7 @@ exports[`GenerateViewConfigJs can generate for 'NoPropsNoEventsNativeComponent.j
 Map {
   "RNCodegenModuleFixturesNativeViewConfig.js" => "
 /**
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -526,7 +496,7 @@ exports[`GenerateViewConfigJs can generate for 'ObjectPropsNativeComponent.js' 1
 Map {
   "RNCodegenModuleFixturesNativeViewConfig.js" => "
 /**
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -559,7 +529,7 @@ exports[`GenerateViewConfigJs can generate for 'PointPropNativeComponent.js' 1`]
 Map {
   "RNCodegenModuleFixturesNativeViewConfig.js" => "
 /**
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -592,7 +562,7 @@ exports[`GenerateViewConfigJs can generate for 'StringPropNativeComponent.js' 1`
 Map {
   "RNCodegenModuleFixturesNativeViewConfig.js" => "
 /**
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -94,6 +94,17 @@ public class ReactFeatureFlags {
     return mapBufferSerializationEnabled;
   }
 
+  /** Feature Flag to use overflowInset values provided by Yoga */
+  private static boolean useOverflowInset = false;
+
+  public static void setUseOverflowInset(boolean enabled) {
+    useOverflowInset = enabled;
+  }
+
+  public static boolean doesUseOverflowInset() {
+    return useOverflowInset;
+  }
+
   /** Enables Fabric for LogBox */
   public static boolean enableFabricInLogBox = false;
 
@@ -105,10 +116,9 @@ public class ReactFeatureFlags {
 
   public static boolean enableScrollViewSnapToAlignmentProp = true;
 
-  public static boolean useDispatchUniqueForCoalescableEvents = false;
-
-  public static boolean useUpdatedTouchPreprocessing = false;
-
   /** TODO: T103427072 Delete ReactFeatureFlags.enableNestedTextOnPressEventFix */
   public static boolean enableNestedTextOnPressEventFix = true;
+
+  /** TODO: T107492383 Delete this flag. Enables postprocessor for rounded corners for Image */
+  public static boolean enableRoundedCornerPostprocessing = false;
 }

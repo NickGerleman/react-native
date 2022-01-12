@@ -1,5 +1,5 @@
 /**
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
@@ -101,6 +101,10 @@ class KeyboardAvoidingView extends React.Component<Props, State> {
     if (wasFrameNull) {
       this._updateBottomIfNecesarry();
     }
+
+    if (this.props.onLayout) {
+      this.props.onLayout(event);
+    }
   };
 
   _updateBottomIfNecesarry = () => {
@@ -157,6 +161,7 @@ class KeyboardAvoidingView extends React.Component<Props, State> {
       // eslint-disable-next-line no-unused-vars
       keyboardVerticalOffset = 0,
       style,
+      onLayout,
       ...props
     } = this.props;
     const bottomHeight = enabled === true ? this.state.bottom : 0;
